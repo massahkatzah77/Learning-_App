@@ -15,19 +15,38 @@ enum GoalStatus {
 @Observable
 class ActivityViewModel {
     // 1. بيانات شريط الأيام
-    var days: [DayElement] = [
-        DayElement(letter: "S", number: "20", state: .loggedPast),
-        DayElement(letter: "M", number: "21", state: .loggedPast),
-        DayElement(letter: "T", number: "22", state: .loggedPast),
-        DayElement(letter: "W", number: "23", state: .loggedPast),
-        DayElement(letter: "T", number: "24", state: .current),
-        DayElement(letter: "F", number: "25", state: .normal),
-        DayElement(letter: "S", number: "26", state: .normal)
-    ]
-    
-    // 2. عدادات البطاقات (النار والثلج)
-    var learnedDaysCount: Int = 4
-    var freezedDaysCount: Int = 0
+    var days: [DayElement] = []
+        
+        var currentDateFormatted: String {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US")
+            formatter.dateFormat = "EEEE, d MMMM"
+            return formatter.string(from: Date())
+        }
+        
+        init() {
+            self.days = generateWeekDays()
+        }
+        
+        func generateWeekDays(from startDate: Date = Date()) -> [DayElement] {
+            let calendar = Calendar.current
+            let letters = ["S", "M", "T", "W", "T", "F", "S"]
+            
+            var result: [DayElement] = []
+            for offset in 0..<7 {
+                if let date = calendar.date(byAdding: .day, value: offset, to: startDate) {
+                    let weekdayIndex = calendar.component(.weekday, from: date) - 1
+                    let dayNumber = "\(calendar.component(.day, from: date))"
+                    let state: DayState = (offset == 0) ? .current : .normal
+                    result.append(DayElement(letter: letters[weekdayIndex], number: dayNumber, state: state))
+                }
+            }
+            return result
+        }
+
+        // 2. عدادات البطاقات (النار والثلج)
+        var learnedDaysCount: Int = 0
+        var freezedDaysCount: Int = 0
     
     // 3. بيانات رصيد التجميد
     var usedFreezes: Int = 0
@@ -36,12 +55,33 @@ class ActivityViewModel {
     // 4. حالات الأزرار لليوم الحالي
     var isLoggedToday: Bool = false
     var isFreezedToday: Bool = false
+    var isTodayCompleted: Bool {
+            isLoggedToday || isFreezedToday
+        }
+        
+        var isFreezeDisabled: Bool {
+            isTodayCompleted || usedFreezes >= maxFreezes
+        }
     // 7. بيانات الهدف وحالة الانتقال من شاشة البداية
         var learningTopic: String = "Swift"
         var selectedDuration: String = "Week"
         var hasStarted: Bool = false
     var goalStatus: GoalStatus = .active // هذا السطر اللي يمديني اجرب عليه الواجهات بتاسك ٣
         
+    var learnedDates: Set<Date> = []
+        var freezedDates: Set<Date> = []
+
+        func calendarStatus(for date: Date) -> DayState {
+            let normalized = Calendar.current.startOfDay(for: date)
+            if learnedDates.contains(normalized) {
+                return .loggedPast
+            } else if freezedDates.contains(normalized) {
+                return .freezed
+            } else {
+                return .normal
+            }
+        }
+    
         private var targetDays: Int {
             switch selectedDuration {
             case "Week": return 7
@@ -91,27 +131,22 @@ class ActivityViewModel {
             usedFreezes = 0
             isLoggedToday = false
             isFreezedToday = false
+        learnedDates.removeAll()
+                freezedDates.removeAll()
             goalStatus = .active
             
-            days = [
-                DayElement(letter: "S", number: "20", state: .normal),
-                DayElement(letter: "M", number: "21", state: .normal),
-                DayElement(letter: "T", number: "22", state: .normal),
-                DayElement(letter: "W", number: "23", state: .normal),
-                DayElement(letter: "T", number: "24", state: .current),
-                DayElement(letter: "F", number: "25", state: .normal),
-                DayElement(letter: "S", number: "26", state: .normal)
-            ]
+        days = generateWeekDays()
         }
     
     // 5. دالة تسجيل التعلم لليوم
         func logAsLearned() {
-            guard !isLoggedToday else { return }
+            guard !isTodayCompleted else { return }
             
             isLoggedToday = true
+            learnedDates.insert(Calendar.current.startOfDay(for: Date()))
             learnedDaysCount += 1
             
-            if let index = days.firstIndex(where: { $0.state == .current || $0.state == .freezed }) {
+            if let index = days.firstIndex(where: { $0.state == .current }) {
                 days[index].state = .loggedPast
             }
             checkGoalCompletion()
@@ -119,9 +154,10 @@ class ActivityViewModel {
         
         // 6. دالة تجميد اليوم
         func freezeDay() {
-            guard !isFreezedToday && usedFreezes < maxFreezes else { return }
+            guard !isFreezeDisabled else { return }
             
             isFreezedToday = true
+            freezedDates.insert(Calendar.current.startOfDay(for: Date()))
             usedFreezes += 1
             freezedDaysCount += 1
             

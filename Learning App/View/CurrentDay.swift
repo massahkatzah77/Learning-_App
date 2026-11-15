@@ -10,6 +10,7 @@ import SwiftUI
 struct CurrentDay: View {
     var viewModel: ActivityViewModel
     @State private var showEditGoal: Bool = false
+    @State private var showCalendar: Bool = false
     var body: some View {
         VStack(spacing: 24) {
             HStack {
@@ -21,7 +22,7 @@ struct CurrentDay: View {
                         .foregroundColor(.white)
                         .padding(.horizontal)
                     
-                    Text("Thursday, 24 October")
+                    Text(viewModel.currentDateFormatted)
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .padding(.horizontal)
@@ -30,7 +31,9 @@ struct CurrentDay: View {
                 Spacer()
                 
                 HStack(spacing: 14) {
-                    HeaderButton(iconName: "calendar")
+                    HeaderButton(iconName: "calendar") {
+                                            showCalendar = true
+                                        }
                     HeaderButton(iconName: "pencil.and.outline") {
                         showEditGoal = true
                     }
@@ -63,16 +66,19 @@ struct CurrentDay: View {
                             LogLearnedButton(isLogged: viewModel.isLoggedToday) {
                                 viewModel.logAsLearned()
                             }
+                            .disabled(viewModel.isLoggedToday || viewModel.isFreezedToday)
+                                            .opacity(viewModel.isFreezedToday ? 0.45 : 1.0)
                             
                             Spacer()
                             
-                            FreezeButtonView(
-                                isFreezedToday: viewModel.isFreezedToday,
-                                usedFreezes: viewModel.usedFreezes,
-                                maxFreezes: viewModel.maxFreezes
-                            ) {
-                                viewModel.freezeDay()
-                            }
+                FreezeButtonView(
+                                    isLoggedToday: viewModel.isLoggedToday,
+                                    isFreezedToday: viewModel.isFreezedToday,
+                                    usedFreezes: viewModel.usedFreezes,
+                                    maxFreezes: viewModel.maxFreezes
+                                ) {
+                                    viewModel.freezeDay()
+                                }
                             .padding(.bottom, 12)
                         } else {
                             GoalStatusView(isCompleted: viewModel.goalStatus == .completed) {
@@ -90,7 +96,10 @@ struct CurrentDay: View {
             LearningGoalView(viewModel: viewModel)
                 .toolbar(.hidden, for: .navigationBar)
         }
-
+        .navigationDestination(isPresented: $showCalendar) {
+                    CalendarView(viewModel: viewModel)
+                        .toolbar(.hidden, for: .navigationBar)
+                }
         
     }
     
@@ -226,15 +235,16 @@ struct CurrentDay: View {
         }
     }
     struct FreezeButtonView: View {
-        let isFreezedToday: Bool
-        let usedFreezes: Int
-        let maxFreezes: Int
-        let onTap: () -> Void
-        
-        // يتعطل الزر ويتحول للرمادي في حالتين: تجميد اليوم أو نفاد الرصيد
-        private var isDisabled: Bool {
-            isFreezedToday || usedFreezes >= maxFreezes
-        }
+        let isLoggedToday: Bool
+            let isFreezedToday: Bool
+            let usedFreezes: Int
+            let maxFreezes: Int
+            let onTap: () -> Void
+            
+            // يتعطل الزر ويتحول للرمادي في ثلاث حالات: تسجيل التعلم اليوم، تجميد اليوم، أو نفاذ الرصيد
+            private var isDisabled: Bool {
+                isLoggedToday || isFreezedToday || usedFreezes >= maxFreezes
+            }
         
         var body: some View {
             VStack(spacing: 12) {
@@ -242,7 +252,7 @@ struct CurrentDay: View {
                     onTap()
                     // سيتم ربط الإجراء بالـ ViewModel لاحقاً
                 }) {
-                    Text(isDisabled ? "Freezed for a day" : "Freeze for a day")
+                    Text(isFreezedToday ? "Freezed for a day" : "Freeze for a day")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(isDisabled ? .gray : .white)
                         .frame(width: 250, height: 52)

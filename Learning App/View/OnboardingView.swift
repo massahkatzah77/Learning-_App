@@ -13,7 +13,9 @@ struct OnboardingView: View {
     var viewModel: ActivityViewModel
         @State private var learningTopic: String = ""
         @State private var selectedDuration: String = "Week"
-
+    private var isStartDisabled: Bool {
+            learningTopic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     var body: some View {
 
         ZStack {
@@ -151,21 +153,22 @@ struct OnboardingView: View {
                     VStack(spacing: 8) {
 
                         Button(action: {
-                            viewModel.startLearning(topic: learningTopic, duration: selectedDuration)
-                            // أكشن الزر
-                        }) {
-                            Text("Start Learning")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .frame(width: 160, height: 50)
-                                .background(Color.orangeui)
-                                .cornerRadius(25)
-                                .glassEffect(
-                                    .clear,
-                                    in: RoundedRectangle(cornerRadius: 25)
-                                )
-                        }
+                                                    viewModel.startLearning(topic: learningTopic, duration: selectedDuration)
+                                                }) {
+                                                    Text("Start Learning")
+                                                        .font(.headline)
+                                                        .fontWeight(.bold)
+                                                        .foregroundColor(isStartDisabled ? .gray : .white)
+                                                        .frame(width: 160, height: 50)
+                                                        .background(isStartDisabled ? Color.gray.opacity(0.25) : Color.orangeui)
+                                                        .cornerRadius(25)
+                                                        .glassEffect(
+                                                            .clear,
+                                                            in: RoundedRectangle(cornerRadius: 25)
+                                                        )
+                                                }
+                                                .disabled(isStartDisabled)
+                                                .animation(.easeInOut(duration: 0.2), value: isStartDisabled)
 
                         Text("You can edit your desire later")
                             .font(.caption)
