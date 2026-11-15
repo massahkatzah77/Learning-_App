@@ -8,14 +8,16 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var viewModel = ActivityViewModel()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            OnboardingView(viewModel: viewModel)
+                .navigationDestination(isPresented: $viewModel.hasStarted) {
+                    CurrentDay(viewModel: viewModel)
+                        .toolbar(.hidden, for: .navigationBar)
+                }
         }
-        .padding()
     }
 }
 
